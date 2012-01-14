@@ -21,7 +21,7 @@
  */
 
 
-anewt_include('database');
+anewt_include('database.new');
 
 
 /**
@@ -833,8 +833,7 @@ class AutoRecord extends Container
 		assert('is_string($class)');
 		assert('is_bool($just_one_result)');
 		assert('is_numeric_array($values)');
-		assert('$db instanceof DB');
-
+		assert('$db instanceof AnewtDatabaseConnectionMySQL');
 		$table = call_user_func(array($class, '_db_table'));
 		$primary_key = call_user_func(array($class, '_db_primary_key'));
 
@@ -846,7 +845,7 @@ class AutoRecord extends Container
 		{
 			$pq = $db->prepare("SELECT\n  ?raw?\nFROM\n  ?raw?\nWHERE ?table?.?column? = ?int?");
 			$rs = $pq->execute($select_clause, $from_clause, $table, $primary_key, $values[0]);
-			$row = $rs->fetch();
+			$row = $rs->fetch_one();
 			$instance = AutoRecord::__db_object_from_array($class, $row);
 			return $instance;
 

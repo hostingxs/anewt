@@ -65,6 +65,7 @@ class DB
 		if (is_null($db))
 		{
 			if (is_null($type))
+			_debug(debug_backtrace());
 				trigger_error('Cannot create instance of DB, no type is specified.', E_USER_ERROR);
 
 			$db = new DB($type);
