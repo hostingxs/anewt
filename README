@@ -16,43 +16,30 @@ Note that Anewt is not a web framework. It will provide you with all the
 tools without forcing you to organize your project in a specific way. That
 means you can use your own preferred directory layout, filenames, etc.
 
-More information can be found inside the doc/ directory. There is a manual
-(incomplete) and API documentation (generated from the source code).
-
-
 Anewt on the web
 ================
 
 The project site for Anewt can be found at
-https://launchpad.net/anewt
-
-Some additional pointers to documentation and code can be found at
-http://anewt.net/
-
-If you find bugs or want to file feature requests, please use our bug
-tracker, which can be found at https://bugs.launchpad.net/anewt/
-
-Wouter Bolsterlee blogged about Anewt:
-- http://uwstopia.nl/blog/2005/08/sneak-peak-at-anewt
-- http://uwstopia.nl/blog/2005/10/anewt-datetime-module
+http://anewt.org
 
 
 Who wrote Anewt?
 ================
 
-Anewt was originally written by Wouter Bolsterlee <uws@xs4all.nl>, but includes
-contributions from several other people. Refer to the AUTHORS file for a list
-of all contributors and their contributions.
-
-We use the Bazaar (bzr) version control system to keep track of Anewt
-development. Development branches can be found at http://anewt.uwstopia.nl/
+Anewt was initiated by Wouter Bolsterlee <uws@xs4all.nl>, who started it with
+assistance of several other authors (see AUTHORS file). Around 2012, Anewt had
+been inactive for almost a year and Daniël Klabbers <anewt@hyn.me> moved the 
+latest next-gen version of Anewt from Bazaar to Github, where it now humbly 
+receives continued development.
 
 
 Contributing
 ============
 
-If you want to provide patches or new code, please read the HACKING file for
-more information and detailed coding style instructions.
+If you want to provide patches or new code, please start at github for more
+info.
+
+http://github.com/HostingXS/anewt
 
 
 Licensing information
