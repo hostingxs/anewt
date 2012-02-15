@@ -1310,7 +1310,7 @@ class AutoRecord extends Container
 			if (in_array($name, $skip_on_update))
 				continue;
 
-			$placeholders[] = sprintf('%s = ?%s:%s?', $db->backend->escape_column_name($name), $type, $name);
+			$placeholders[] = sprintf('%s = ?%s:%s?', $db->escape_column_name($name), $type, $name);
 			$values[$name] = $this->getdefault($name, null);
 		}
 

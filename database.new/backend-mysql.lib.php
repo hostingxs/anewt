@@ -33,10 +33,10 @@ final class AnewtDatabaseConnectionMySQL extends AnewtDatabaseConnection
 {
 	public function __construct($settings)
 	{
+		$this -> type ="mysql";
 		$default_settings = array(
 			'encoding' => 'UTF8',
 		);
-
 		parent::__construct(array_merge($default_settings, $settings));
 
 		if (!array_key_exists('hostname', $this->settings))

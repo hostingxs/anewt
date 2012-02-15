@@ -236,6 +236,9 @@ abstract class AnewtDatabaseConnection
 	 * \see DB::prepare_execute
 	 * \see DB::prepare_execute_fetch_all
 	 */
+	public function prepare_execute_fetch( $sql , $values=null) {
+		return $this -> prepare_execute_fetch_one($sql, $values);
+	}
 	public function prepare_execute_fetch_one($sql, $values=null)
 	{
 		$values = func_get_args();

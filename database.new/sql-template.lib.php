@@ -101,7 +101,6 @@ final class AnewtDatabaseSQLTemplate
 	public static function field_type_for_string($field_type)
 	{
 		assert('is_string($field_type);');
-
 		switch ($field_type)
 		{
 			case 'bool':
@@ -260,6 +259,7 @@ final class AnewtDatabaseSQLTemplate
 				while ($placeholder_matches[1])
 				{
 					$type = AnewtDatabaseSQLTemplate::field_type_for_string(array_shift($placeholder_matches[1]));
+
 					$name = array_shift($placeholder_matches[2]);
 
 					$this->placeholders[] = array($name, $type);
@@ -562,13 +562,11 @@ final class AnewtDatabaseSQLTemplate
 			/* Sanity checks */
 			if (!is_numeric_array($values))
 				throw new AnewtDatabaseQueryException('SQL templates in positional mode can only be filled using a numeric array');
-
 			$n_values = count($values);
 			if ($n_placeholders != $n_values)
 				throw new AnewtDatabaseQueryException(
 					'Expected %d placeholder values, but %d values were provided.',
 					$n_placeholders, $n_values);
-
 			/* Fill the placeholders */
 			for ($i = 0; $i < $n_placeholders; $i++)
 			{
