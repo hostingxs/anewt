@@ -615,6 +615,7 @@ class AutoRecord extends Container
 			$own_alias = array_get_default($join, 'own_alias', $table_alias);
 
 			$foreign_table = $db->escape_table_name(call_user_func(array($foreign_class, '_db_table')));
+
 			if (array_has_key($join, 'foreign_key'))
 				$foreign_key = $join['foreign_key'];
 			else
@@ -1024,7 +1025,7 @@ class AutoRecord extends Container
 				$columns = array_keys(call_user_func(array($foreign_class, '_db_columns')));
 			}
 			$fpkey = call_user_func(array($foreign_class, '_db_primary_key'));
-			$instances = AutoRecord::db_split_objects($name, $foreign_class, $columns, $fpkey, $pkey, $instances);
+			$instances = AutoRecord::db_split_objects($name, $foreign_class, $columns, $fpkey, $pkey, $instances, !array_get_default($join, 'multi', false));
 		}
 		if ($just_one_result)
 		{
