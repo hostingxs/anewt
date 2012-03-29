@@ -779,12 +779,19 @@ class AutoRecord extends Container
 	 *   $parent->get($child_name) of which the return value depends on
 	 *   $only_one.
 	 */
-	public static function db_split_objects($child_name, $class, $split_columns, $testcol, $parent_identifier, $objects, $only_one=false) {
+	public static function db_split_objects($child_name, $class, $split_columns, $testcol, $parent_identifier, $objects, $only_one=false, $foreign_alias=false) {
 		$ret = array();
 		foreach ($objects as $object) {
 
 			$subobject = new $class;
-			$subobject->seed($object, $split_columns);
+			if( $foreign_alias ) {
+				$sc	= $split_columns;
+				$split_columns = array();
+				foreach( $sc as $s ) {
+					$split_columns[]	= $s;
+					$subobject -> set( $s , $object -> get(sprintf( "%s_%s" , $foreign_alias , $s )));
+				}
+			}
 
 			$key = $object->get($parent_identifier);
 
@@ -1025,7 +1032,7 @@ class AutoRecord extends Container
 				$columns = array_keys(call_user_func(array($foreign_class, '_db_columns')));
 			}
 			$fpkey = call_user_func(array($foreign_class, '_db_primary_key'));
-			$instances = AutoRecord::db_split_objects($name, $foreign_class, $columns, $fpkey, $pkey, $instances, !array_get_default($join, 'multi', false));
+			$instances = AutoRecord::db_split_objects($name, $foreign_class, $columns, $fpkey, $pkey, $instances, !array_get_default($join, 'multi', false) , array_get_default( $join , "foreign_alias" , $name));
 		}
 		if ($just_one_result)
 		{

@@ -676,7 +676,9 @@ class Container
 		$name = str_replace('-', '_', $name);
 		if (!$this->_isset($name))
 			$this->_set($name, array());
-
+		if( !is_array( $this -> __data ) || !is_array( $this -> __data[$name] )) {
+			$this -> __data[$name]		= array();
+		}
 		assert('is_array($this->_get($name))');
 		array_push($this->__data[$name], $value);
 	}
