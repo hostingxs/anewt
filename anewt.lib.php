@@ -65,7 +65,8 @@ function create_include_function($name, $path, $file_suffix='.lib.php', $main_fi
 				$filename = \'@@PATH@@/\' . str_strip_suffix($module_or_file, \'/\');
 				if (is_dir($filename)) $filename .= \'/@@MAIN@@\';
 				$filename .= \'@@SUFFIX@@\';
-				require_once $filename;
+				// we cannot verify <file>.lib.php when a dir of the same name exists.. [FIX]
+				if (is_file($filename))	require_once $filename;
 			}
 		}'
 	);

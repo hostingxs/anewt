@@ -62,6 +62,7 @@ anewt_include('database.new');
  */
 class AutoRecord extends Container
 {
+	private $__fromdb		= false;
 	/** \{
 	 * \name Static methods
 	 */
@@ -162,6 +163,17 @@ class AutoRecord extends Container
 	protected static function _db_primary_key()
 	{
 		return 'id';
+	}
+	
+	/**
+	*	Return an array of primary keys, If false returned assume single primary key
+	*
+	*
+	*
+	*/
+	protected static function _db_primary_keys()
+	{
+		return false;
 	}
 
 	/**
@@ -716,6 +728,7 @@ class AutoRecord extends Container
 		assert('is_assoc_array($row)');
 		$instance = new $class();
 		$instance->_seed($row);
+		$instance->__fromdb	= true;
 		return $instance;
 	}
 
@@ -782,7 +795,6 @@ class AutoRecord extends Container
 	public static function db_split_objects($child_name, $class, $split_columns, $testcol, $parent_identifier, $objects, $only_one=false, $foreign_alias=false) {
 		$ret = array();
 		foreach ($objects as $object) {
-
 			$subobject = new $class;
 			if( $foreign_alias ) {
 				$sc	= $split_columns;
@@ -842,46 +854,22 @@ class AutoRecord extends Container
 		assert('is_bool($just_one_result)');
 		assert('is_numeric_array($values)');
 		assert('$db instanceof AnewtDatabaseConnectionMySQL');
-		$table = call_user_func(array($class, '_db_table'));
-		$primary_key = call_user_func(array($class, '_db_primary_key'));
-
-		$select_clause = AutoRecord::__db_select_clause($class, null, null, $db);
-		$from_clause = AutoRecord::__db_from_clause($class, null, null, $db);
-
-		/* Single item requested: return an instance or null */
-		if ($just_one_result)
-		{
-			$pq = $db->prepare("SELECT\n  ?raw?\nFROM\n  ?raw?\nWHERE ?table?.?column? = ?int?");
-			$rs = $pq->execute($select_clause, $from_clause, $table, $primary_key, $values[0]);
-			$row = $rs->fetch_one();
-			$instance = AutoRecord::__db_object_from_array($class, $row);
-			return $instance;
-
-		/* Possibly multiple results: return an array with zero or more instances */
-		} else
-		{
-			/* Return early if there are no id values at all */
-			$num_values = count($values);
-			if ($num_values == 0)
-			{
-				$r = array();
-				return $r;
-			}
-
-			/* Build string for "WHERE id IN (...)" query */
-			$where = join(', ', array_fill(0, $num_values, '?int?'));
-			$tpl = new AnewtDatabaseSQLTemplate($where, $db);
-			$ids = $tpl->fill($values);
-
-			/* Execute */
-			$pq = $db->prepare("SELECT\n  ?raw?\nFROM\n  ?raw?\nWHERE ?table?.?column? IN (?raw?)");
-			$rs = $pq->execute($select_clause, $from_clause, $table, $primary_key, $ids);
-
-			/* Handle results */
-			$rows = $rs->fetch_all();
-			$instances = AutoRecord::__db_objects_from_arrays($class, $rows);
-			return $instances;
+		
+		// validate that find by id is impossible on AR classes which have multiple primary keys
+		if( $this -> _db_primary_keys() ) {
+			trigger_error( "find by id is not possible on an autorecord object with multiple primary keys" );
 		}
+
+		return AutoRecord::__db_find_by_sql( 
+			$class 
+			, $just_one_result 
+			, ( $just_one_result 
+				? sprintf( "WHERE %s.%s = %s" , call_user_func(array($class, '_db_table')) , call_user_func(array($class, '_db_primary_key')) , $values[0])
+				: sprintf( "WHERE %s.%s IN (%s)" , call_user_func(array($class, '_db_table')) , call_user_func(array($class, '_db_primary_key')) , implode( "," , $values))
+			)
+			, NULL
+			, $db
+		);
 	}
 
 	/**
@@ -1021,6 +1009,10 @@ class AutoRecord extends Container
 		foreach($multi_joins as $join)
 		{
 			$foreign_class = $join['foreign_class'];
+			$fpkeys		= call_user_func( array($foreign_class , "_db_primary_keys"));
+			if( $fpkeys ) {
+				trigger_error( "cannot join with an autorecord class which has multiple primary keys" );
+			}
 			if (array_has_key($join, 'child_name')) {
 				$name = $join['child_name'];
 			} else {
@@ -1124,7 +1116,7 @@ class AutoRecord extends Container
 	public static function convert_to_key_hash($objects, $column)
 	{
 		assert('is_numeric_array($objects)');
-		assert('is_string($column)');
+#		assert('is_string($column)');
 
 		/* Handle empty lists */
 		if (count($objects) == 0)
@@ -1135,7 +1127,16 @@ class AutoRecord extends Container
 		foreach (array_keys($objects) as $object_key)
 		{
 			assert('$objects[$object_key] instanceof AutoRecord;');
-			$r[$objects[$object_key]->_get($column)] = $objects[$object_key];
+			if( !is_array($column) ) {
+				$r[$objects[$object_key]->_get($column)] = $objects[$object_key];
+			} else {
+				$ky				= "";
+				foreach( $column as $c ) {
+					$ky			.= $objects[$object_key] -> _get($c);
+				}
+				$ky				= md5( $ky );
+				$r[$ky]			= $objects[$object_key];
+			}
 		}
 		return $r;
 	}
@@ -1162,7 +1163,11 @@ class AutoRecord extends Container
 			return array();
 
 		/* Find out the primary key column by looking in the first object */
-		$primary_key_column = $objects[0]->_db_primary_key();
+		if( $objects[0]->_db_primary_keys()) {
+			$primary_key_column = $objects[0]->_db_primary_keys();
+		} else {
+			$primary_key_column = $objects[0]->_db_primary_key();
+		}
 
 		$r = AutoRecord::convert_to_key_hash($objects, $primary_key_column);
 		return $r;
@@ -1189,7 +1194,8 @@ class AutoRecord extends Container
 		$table = $this->_db_table();
 		$columns = $this->_db_columns();
 		$db = $this->_db();
-		$primary_key = $this->_db_primary_key();
+		$primary_keys	= $this->_db_primary_keys();
+		$primary_key 	= $this->_db_primary_key();
 
 		$this->before_insert();
 
@@ -1204,7 +1210,7 @@ class AutoRecord extends Container
 			assert('is_string($type)');
 
 			/* Skip the primary key */
-			if ($name === $primary_key && $skip_primary_key)
+			if (!$primary_keys && $name === $primary_key && $skip_primary_key)
 				continue;
 
 			/* Skip columns which are not set, they will be set by the database defaults */
@@ -1234,8 +1240,8 @@ class AutoRecord extends Container
 		$query = 'INSERT INTO ?table? (?raw?) VALUES (?raw?)';
 		$pq = $db->prepare($query);
 		$rs = $pq->execute($table, $columns_sql, $values_sql);
-
-		if ($skip_primary_key)
+		// change @ 7.5.'12 - only ask for AI id if primary key is integer
+		if (!$primary_keys && $skip_primary_key && ($columns[$primary_key]['type'] == "integer" || $columns[$primary_key]['type'] == "int"))
 		{
 			/* Find out the new primary key value */
 			switch ($db->type)
@@ -1297,6 +1303,7 @@ class AutoRecord extends Container
 		$skip_on_update = $this->_db_skip_on_update();
 		$skip_on_save = $this->_db_skip_on_save();
 		$skip_on_update = array_merge($skip_on_update, $skip_on_save);
+		$primary_keys	= $this -> _db_primary_keys();
 		$primary_key = $this->_db_primary_key();
 		$primary_key_value = $this->get($primary_key);
 
@@ -1311,7 +1318,7 @@ class AutoRecord extends Container
 			assert('is_string($type)');
 
 			/* Skip the primary key */
-			if ($name === $primary_key)
+			if (($primary_keys && in_array($name,$primary_keys)) || (!$primary_keys && $name === $primary_key))
 				continue;
 
 			/* Skip read-only values */
@@ -1329,13 +1336,36 @@ class AutoRecord extends Container
 			$update_sql = $update_tpl->fill($values);
 	
 			/* Prepare and execute the query */
-			$pq = $db->prepare('UPDATE ?table? SET ?raw? WHERE ?column? = ?int?');
-			$rs = $pq->execute($table, $update_sql, $primary_key, $primary_key_value);
+
+			list( $whr , $params )		= $this -> prepareWhere();
+			$params["table"]		= $table;
+			$params["raw"]			= $update_sql;
+			$pdopm = $db->prepare(sprintf('UPDATE ?table:table? SET ?raw:raw? WHERE %s',$whr));
+			$rs = $pdopm->executev( $params );
 		}
 
 		$this->after_update();
 	}
-
+	/**
+	 * Prepare a where based on multiple primary keys
+	 */
+	private function prepareWhere() {
+		$whr				= array();
+		$params				= array();
+		$columns 			= $this->_db_columns();
+		if( $this -> _db_primary_keys() ) {
+			$whr			= array();
+			foreach( $this -> _db_primary_keys() as $pk ) {
+				$whr[]								= sprintf( "%s = ?string:%s_value?" , $pk ,$pk );
+				$params[sprintf("%s_value",$pk)]				= $this -> get($pk);
+			}
+			$whr									= implode( " AND " , $whr );
+		} else {
+			$whr									= sprintf( "%s = ?%s:%s_value?" , $this -> _db_primary_key() , $columns[$this -> _db_primary_key()]['type'] , $this -> _db_primary_key() );
+			$params[sprintf("%s_value")]						= $this -> get($this -> _db_primary_key());
+		}
+		return array( $whr , $params );
+	}
 	/**
 	 * Save this record in the database. If the record was previously unsaved
 	 * (no primary key value was set), an INSERT query is performed. Otherwise,
@@ -1345,18 +1375,19 @@ class AutoRecord extends Container
 	 *   Whether or not we should insert a new row. Leave empty to check on the
 	 *   primary key.
 	 */
-	public function save($new=null)
+	public function save($new=NULL)
 	{
 		$this->before_save();
-
 		if (is_null($new))
 		{
 			/* Default behaviour */
-			$primary_key = $this->_db_primary_key();
-			if ($this->is_set($primary_key))
+			$primary_keys	= $this -> _db_primary_keys();
+			$primary_key 	= $this->_db_primary_key();
+			if ($this->__fromdb) {
 				$this->__db_update();
-			else
+			} else {
 				$this->__db_insert();
+			}
 		} else
 		{
 			/* Forced new/existing record */
@@ -1390,16 +1421,21 @@ class AutoRecord extends Container
 			return Container::delete($name);
 
 		$this->before_delete();
+		$primary_keys	= $this -> _db_primary_keys();
+		$primary_key 	= $this -> _db_primary_key();
+		
+		list( $whr , $params ) = $this -> prepareWhere();
 
-		$primary_key = $this->_db_primary_key();
 		if ($this->is_set($primary_key))
 		{
-			$primary_key_value = $this->get($primary_key);
+
 			$db = $this->_db();
 			$table = $this->_db_table();
+			$params["table"]	= $table;
 			$db->prepare_execute(
-				'DELETE FROM ?table? WHERE ?column? = ?int?;',
-				$table, $primary_key, $primary_key_value);
+				sprintf('DELETE FROM ?table:table? WHERE %s',$whr),
+				$params
+			);
 		}
 
 		$this->after_delete();

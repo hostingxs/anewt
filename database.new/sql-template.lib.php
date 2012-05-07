@@ -546,12 +546,12 @@ final class AnewtDatabaseSQLTemplate
 				}
 				else
 				{
-					if (!array_key_exists($field_name, $values))
+					if (!array_key_exists($field_name, $values)) {
 						throw new AnewtDatabaseQueryException('No value specified for field "%s".', $field_name);
+					}
 
 					$value = $values[$field_name];
 				}
-
 				$escaped_values[] = $this->escape_field($field_type, $value);
 			}
 		}
@@ -575,7 +575,6 @@ final class AnewtDatabaseSQLTemplate
 				$escaped_values[] = $this->escape_field($field_type, $value);
 			}
 		}
-
 		/* Now that all supplied values are validated and escaped properly, we
 		 * can easily substitute them into the query template. The %s
 		 * placeholders were already prepared during initial parsing. */
@@ -584,7 +583,6 @@ final class AnewtDatabaseSQLTemplate
 			$query = vsprintf($this->sql, $escaped_values);
 		else
 			$query = vsprintf($this->sql, $escaped_values);
-
 		return $query;
 	}
 }
