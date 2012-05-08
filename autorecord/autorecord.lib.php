@@ -1362,7 +1362,7 @@ class AutoRecord extends Container
 			$whr									= implode( " AND " , $whr );
 		} else {
 			$whr									= sprintf( "%s = ?%s:%s_value?" , $this -> _db_primary_key() , $columns[$this -> _db_primary_key()]['type'] , $this -> _db_primary_key() );
-			$params[sprintf("%s_value")]						= $this -> get($this -> _db_primary_key());
+			$params[sprintf("%s_value",$this -> _db_primary_key())]						= $this -> get($this -> _db_primary_key());
 		}
 		return array( $whr , $params );
 	}
