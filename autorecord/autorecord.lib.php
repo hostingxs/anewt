@@ -676,6 +676,14 @@ class AutoRecord extends Container
 			$table_alias = $db->escape_table_name(call_user_func(array($class, '_db_table')));
 
 		$sort_column = call_user_func(array($class, '_db_sort_column'));
+		if (is_null($sort_column) && call_user_func(array($class, '_db_primary_keys'))) {
+			$sort_column = call_user_func(array($class, '_db_primary_keys'));
+			if( $sort_column && is_array( $sort_column )) {
+				$sort_column = array_shift($sort_column);
+			} else { $sort_column	= null; }
+		}
+			
+		
 		if (is_null($sort_column))
 			$sort_column = call_user_func(array($class, '_db_primary_key'));
 
@@ -799,7 +807,7 @@ class AutoRecord extends Container
 			if( $foreign_alias ) {
 				$sc	= $split_columns;
 				$split_columns = array();
-				foreach( $sc as $s ) {
+				foreach( $sc as $s => $opts ) {
 					$split_columns[]	= $s;
 					$subobject -> set( $s , $object -> get(sprintf( "%s_%s" , $foreign_alias , $s )));
 				}
@@ -1083,7 +1091,7 @@ class AutoRecord extends Container
 			$placeholder_values = array($table, $column);
 		} else
 		{
-			$where_clause = sprintf('?table?.?column? = ?%s?', $columns[$column]);
+			$where_clause = sprintf('?table?.?column? = ?%s?', self::isComplex($columns) ? $columns[$column]['type'] : $columns[$column] );
 			$placeholder_values = array($table, $column, $value);
 		}
 
@@ -1204,8 +1212,13 @@ class AutoRecord extends Container
 		$number_of_columns = 0;
 		$names = array();
 		$values = array();
-		foreach ($columns as $name => $type)
+		foreach ($columns as $name => $opts)
 		{
+			if( $this -> get("isComplex")){
+				$type		= $opts['type'];
+			} else {
+				$type		= $opts;
+			} 
 			assert('is_string($name)');
 			assert('is_string($type)');
 
@@ -1220,7 +1233,7 @@ class AutoRecord extends Container
 			$number_of_columns++;
 			$names[] = $name;
 			$value_types[] = sprintf('?%s:%s?', $type, $name); /* placeholder for real values */
-			$values[$name] = $this->getdefault($name, null);
+			$values[$name] = $this->getdefault($name,  isset($opts['default']) ? $opts['default'] : null );
 		}
 
 		/* Create SQL for the list of column names */
@@ -1312,8 +1325,13 @@ class AutoRecord extends Container
 		/* Loop over the columns and build an UPDATE query */
 		$placeholders = array();
 		$values = array();
-		foreach ($columns as $name => $type)
-		{
+		foreach ($columns as $name => $opts)
+		{	
+			if( $this -> get("isComplex")){
+				$type		= $opts['type'];
+			} else {
+				$type		= $opts;
+			} 
 			assert('is_string($name)');
 			assert('is_string($type)');
 
@@ -1326,7 +1344,7 @@ class AutoRecord extends Container
 				continue;
 
 			$placeholders[] = sprintf('%s = ?%s:%s?', $db->escape_column_name($name), $type, $name);
-			$values[$name] = $this->getdefault($name, null);
+			$values[$name] = $this->getdefault($name, isset($opts['default']) ? $opts['default'] : null);
 		}
 
 		if(count($placeholders))
@@ -1361,10 +1379,28 @@ class AutoRecord extends Container
 			}
 			$whr									= implode( " AND " , $whr );
 		} else {
-			$whr									= sprintf( "%s = ?%s:%s_value?" , $this -> _db_primary_key() , $columns[$this -> _db_primary_key()]['type'] , $this -> _db_primary_key() );
+			$whr									= sprintf( "%s = ?%s:%s_value?" , $this -> _db_primary_key() 
+														, $this -> get("isComplex") ? $columns[$this -> _db_primary_key()]['type'] : $columns[$this -> _db_primary_key()]
+														, $this -> _db_primary_key() );
 			$params[sprintf("%s_value",$this -> _db_primary_key())]						= $this -> get($this -> _db_primary_key());
 		}
 		return array( $whr , $params );
+	}
+	/**
+	*	Tries to see whether the _db_columns is a Complex type
+	*/
+	private static function isComplex($columns=false) {
+		if( !$columns ) {
+			$columns			= self::_db_columns();
+		}
+		assert('is_array($columns)');
+		if(is_assoc_array( $columns ) && array_has_key($columns,"type")) {
+			return true;
+		}
+		return false;
+	}
+	private function get_isComplex_() {
+		return self::isComplex( $this -> _db_columns() );
 	}
 	/**
 	 * Save this record in the database. If the record was previously unsaved
@@ -1426,17 +1462,25 @@ class AutoRecord extends Container
 		
 		list( $whr , $params ) = $this -> prepareWhere();
 
-		if ($this->is_set($primary_key))
-		{
-
-			$db = $this->_db();
-			$table = $this->_db_table();
-			$params["table"]	= $table;
-			$db->prepare_execute(
-				sprintf('DELETE FROM ?table:table? WHERE %s',$whr),
-				$params
-			);
+		if( $primary_keys ) {
+			foreach( $primary_keys as $pk ) {
+				if( !$this -> is_set( $pk ) ) {
+					return false;
+				}
+			}
+		} elseif( $primary_key && $this -> is_set($primary_key) ) {
+			
+		} else {
+			return false;
 		}
+
+		$db = $this->_db();
+		$table = $this->_db_table();
+		$params["table"]	= $table;
+		$db->prepare_executev(
+			sprintf('DELETE FROM ?table:table? WHERE %s',$whr),
+			$params
+		);
 
 		$this->after_delete();
 	}
