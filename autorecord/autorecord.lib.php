@@ -807,7 +807,7 @@ class AutoRecord extends Container
 			if( $foreign_alias ) {
 				$sc	= $split_columns;
 				$split_columns = array();
-				foreach( $sc as $s => $opts ) {
+				foreach( $sc as $s ) {
 					$split_columns[]	= $s;
 					$subobject -> set( $s , $object -> get(sprintf( "%s_%s" , $foreign_alias , $s )));
 				}
@@ -864,7 +864,7 @@ class AutoRecord extends Container
 		assert('$db instanceof AnewtDatabaseConnectionMySQL');
 		
 		// validate that find by id is impossible on AR classes which have multiple primary keys
-		if( $this -> _db_primary_keys() ) {
+		if( call_user_func( array($class,"_db_primary_keys") )) {
 			trigger_error( "find by id is not possible on an autorecord object with multiple primary keys" );
 		}
 
@@ -1389,7 +1389,7 @@ class AutoRecord extends Container
 	/**
 	*	Tries to see whether the _db_columns is a Complex type
 	*/
-	private static function isComplex($columns=false) {
+	public static function isComplex($columns=false) {
 		if( !$columns ) {
 			$columns			= self::_db_columns();
 		}
@@ -1399,7 +1399,7 @@ class AutoRecord extends Container
 		}
 		return false;
 	}
-	private function get_isComplex_() {
+	public function get_isComplex_() {
 		return self::isComplex( $this -> _db_columns() );
 	}
 	/**

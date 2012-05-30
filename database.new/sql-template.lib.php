@@ -234,7 +234,6 @@ final class AnewtDatabaseSQLTemplate
 		{
 			preg_match_all($placeholder_pattern_positional, $sql, $placeholder_matches);
 		}
-
 		if ($placeholder_matches[1])
 		{
 			/* There is at least one placeholder and we know whether we are
