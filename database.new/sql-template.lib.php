@@ -524,7 +524,8 @@ final class AnewtDatabaseSQLTemplate
 	{
 		$n_placeholders = count($this->placeholders);
 		$escaped_values = array();
-
+		if( count($values) == 1 && is_null($values[0]) ) unset($values);
+		
 		/* Named mode... */
 		if ($this->named_mode)
 		{
@@ -559,9 +560,9 @@ final class AnewtDatabaseSQLTemplate
 		else
 		{
 			/* Sanity checks */
-			if (!is_numeric_array($values))
+			if ($n_placeholders > 0 && !is_numeric_array($values))
 				throw new AnewtDatabaseQueryException('SQL templates in positional mode can only be filled using a numeric array');
-			$n_values = count($values);
+			$n_values = (is_null($values) ? 0 : count($values));
 			if ($n_placeholders != $n_values)
 				throw new AnewtDatabaseQueryException(
 					'Expected %d placeholder values, but %d values were provided.',

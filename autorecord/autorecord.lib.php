@@ -1218,7 +1218,7 @@ class AutoRecord extends Container
 				$type		= $opts['type'];
 			} else {
 				$type		= $opts;
-			} 
+			}
 			assert('is_string($name)');
 			assert('is_string($type)');
 
@@ -1253,7 +1253,7 @@ class AutoRecord extends Container
 		$query = 'INSERT INTO ?table? (?raw?) VALUES (?raw?)';
 		$pq = $db->prepare($query);
 		$rs = $pq->execute($table, $columns_sql, $values_sql);
-		// change @ 7.5.'12 - only ask for AI id if primary key is integer
+
 		if (!$primary_keys && $skip_primary_key && ($columns[$primary_key]['type'] == "integer" || $columns[$primary_key]['type'] == "int"))
 		{
 			/* Find out the new primary key value */
@@ -1297,6 +1297,8 @@ class AutoRecord extends Container
 					$this->_set($primary_key, $row['id']);
 					break;
 			}
+			// after receiving the AI value, we accept this item as "from DB" so it will not be saved but updated next time on method ::save.
+			$this -> __fromdb	= true;
 		}
 
 		$this->after_insert();
@@ -1394,7 +1396,7 @@ class AutoRecord extends Container
 			$columns			= self::_db_columns();
 		}
 		assert('is_array($columns)');
-		if(is_assoc_array( $columns ) && array_has_key($columns,"type")) {
+		if(is_assoc_array( $columns ) && array_has_key( array_shift($columns),"type")) {
 			return true;
 		}
 		return false;
