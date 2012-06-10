@@ -1392,11 +1392,13 @@ class AutoRecord extends Container
 	*	Tries to see whether the _db_columns is a Complex type
 	*/
 	public static function isComplex($columns=false) {
+
 		if( !$columns ) {
 			$columns			= self::_db_columns();
 		}
+		
 		assert('is_array($columns)');
-		if(is_assoc_array( $columns ) && array_has_key( array_shift($columns),"type")) {
+		if(is_assoc_array( $columns ) && is_array( array_shift($columns)) && array_has_key( array_shift($columns),"type")) {
 			return true;
 		}
 		return false;
