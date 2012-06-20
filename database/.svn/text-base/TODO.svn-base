@@ -1,6 +1,0 @@
-
-- Debugging facilities
-- Counting number of executed queries
-- setup_from_config() or something like that
-- Function to get last inserted row id
-- Make short function descriptions use infinitive verb

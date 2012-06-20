@@ -524,7 +524,6 @@ final class AnewtDatabaseSQLTemplate
 	{
 		$n_placeholders = count($this->placeholders);
 		$escaped_values = array();
-		if( count($values) == 1 && is_null($values[0]) ) unset($values);
 		
 		/* Named mode... */
 		if ($this->named_mode)

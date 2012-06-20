@@ -9,10 +9,9 @@
 
 
 /* FIXME: module name */
-anewt_include('database.new/database');
-anewt_include('database.new/connection');
-anewt_include('database.new/sql-template');
-anewt_include('database.new/result-set');
-anewt_include('database.new/prepared-query');
-
-?>
+anewt_include('database/database');
+anewt_include('database/connection');
+anewt_include('database/sql-template');
+anewt_include('database/result-set');
+anewt_include('database/prepared-query');
+anewt_include('database/backend-mysql');
