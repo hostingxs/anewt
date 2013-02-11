@@ -1592,4 +1592,7 @@ class AutoRecord extends Container
 	public static function find_one_by_column($column, $value) {
 		return static::__db_find_by_column(true, $column, $value);
 	}
+	final public function __sleep() {
+		return array_keys(static::_db_columns());
+	}
 }
