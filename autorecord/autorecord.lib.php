@@ -74,12 +74,13 @@ class AutoRecord extends Container
 	 * \return
 	 *   A reference to a Database instance
 	 */
-	protected static function _db()
-	{
-		$db = DB::get_instance();
-		return $db;
-	}
 
+	protected static function _db() {
+		return AnewtDatabase::get_connection( "default" );
+	}
+	static protected function _db_table_engine() {
+		return "INNODB";
+	}
 	/**
 	 * Return the name of the table to use. You must override this method for
 	 * your own classes. An example might be the following one-liner:
@@ -99,8 +100,14 @@ class AutoRecord extends Container
 	 * Return an associative array of column name => column type mappings. You
 	 * must override this method for your own classes. An example might be the
 	 * following one-liner:
-	 * <code>return array('id' => 'int', 'name' => 'str', 'age' =>
-	 * 'int');</code>
+	 * <code>
+	 * return array('id' => 'int', 'name' => 'str', 'age' => 'int');
+	 * </code>
+	 *
+	 * The complex method returns an array with the keys being the columns:
+	 * <code>
+	 * [TODO]
+	 * </code>
 	 *
 	 * \return
 	 *   An associative array with column name => type items
@@ -297,7 +304,10 @@ class AutoRecord extends Container
 	protected static function _db_join_many() {
 		return array();
 	}
-
+	/**
+	*	[TODO] Backward Compatibility
+	*
+	*/
 	/**
 	 * Register a class as an AutoRecord. This does some evil voodoo magic to
 	 * get things to work in a decent way. Your own class name should be called
@@ -333,148 +343,8 @@ class AutoRecord extends Container
 		 * calling static methods from derived classes (debug_backtrace() can be
 		 * used in PHP4, but this doesn't work for PHP5). */
 
-		$methods = array();
-
-		/* Select clause with all fields */
-		$methods['_db_select_clause'] = 'protected static function _db_select_clause($table_alias=null, $joins=null) {
-			$db = @@CLASS@@::_db();
-			return @@CLASS@@::__db_select_clause(\'@@CLASS@@\', $table_alias, $joins, $db);
-		}';
-
-		/* From clause with all joins */
-		$methods['_db_from_clause'] = 'function _db_from_clause($table_alias=null, $joins=null) {
-			$db = &@@CLASS@@::_db();
-			return @@CLASS@@::__db_from_clause(\'@@CLASS@@\', $table_alias, $joins, $db);
-		}';
-
-		/* Create instances from arrays (e.g. database records) */
-		$methods['_db_object_from_array'] = 'protected static function _db_object_from_array($arr) {
-			$r = @@CLASS@@::__db_object_from_array(\'@@CLASS@@\', $arr);
-			return $r;
-		}';
-		$methods['_db_objects_from_arrays'] = 'protected static function _db_objects_from_arrays($arrs) {
-			$r = @@CLASS@@::__db_objects_from_arrays(\'@@CLASS@@\', $arrs);
-			return $r;
-		}';
-
-		/* Find all */
-		$methods['find_all'] = 'public static function find_all() {
-			$result = @@CLASS@@::find_by_sql();
-			return $result;
-		}';
-
-		/* Find by id */
-		$methods['find_by_id'] = 'public static function find_by_id($values) {
-			$args = func_get_args();
-			$num_args = func_num_args();
-			/* Accept both multiple parameters and a single array */
-			if (($num_args == 1) && is_array($args[0])) {
-				$args = $args[0];
-			}
-			$db = @@CLASS@@::_db();
-			$result = AutoRecord::__db_find_by_id(\'@@CLASS@@\', false, $args, $db);
-			return $result;
-		}';
-
-		$methods['find_one_by_id'] = 'public static function find_one_by_id($value) {
-			assert(\'is_int($value)\');
-			/* Check for just one single parameter. This helps finding
-			 * bugs where find_by_id() was meant to be used */
-			$num_args = func_num_args();
-			assert(\'$num_args === 1\');
-			$db = @@CLASS@@::_db();
-			$result = AutoRecord::__db_find_by_id(\'@@CLASS@@\', true, array($value), $db);
-			return $result;
-		}';
-
-		/* Find by SQL */
-		$methods['find_by_sql'] = 'public static function find_by_sql($sql=null, $values=null) {
-			$args = func_get_args();
-			$sql = array_shift($args);
-			if (count($args) == 1 && is_array($args[0])) $args = $args[0];
-			$db = @@CLASS@@::_db();
-			$result = AutoRecord::__db_find_by_sql(\'@@CLASS@@\', false, $sql, $args, $db);
-			return $result;
-		}';
-		$methods['find_one_by_sql'] = 'public static function find_one_by_sql($sql=null, $values=null) {
-			$args = func_get_args();
-			$sql = array_shift($args);
-			if (count($args) == 1 && is_array($args[0])) $args = $args[0];
-			$db = @@CLASS@@::_db();
-			$result = AutoRecord::__db_find_by_sql(\'@@CLASS@@\', true, $sql, $args, $db);
-			return $result;
-		}';
-
-		/* Find by column */
-		$methods['find_by_column'] = 'public static function find_by_column($column, $value) {
-			$db = @@CLASS@@::_db();
-			$result = AutoRecord::__db_find_by_column(\'@@CLASS@@\', false, $column, $value, $db);
-			return $result;
-		}';
-		$methods['find_one_by_column'] = 'public static function find_one_by_column($column, $value) {
-			$db = @@CLASS@@::_db();
-			$result = AutoRecord::__db_find_by_column(\'@@CLASS@@\', true, $column, $value, $db);
-			return $result;
-		}';
-
-		/* Has-many relations */
-		$has_many_definitions = call_user_func(array($class_, '_db_has_many'));
-		foreach ($has_many_definitions as $has_many_definition)
-		{
-			assert('is_numeric_array($has_many_definition)');
-			assert('count($has_many_definition) == 4');
-			list ($method_name, $foreign_class, $local_key, $foreign_key) = $has_many_definition;
-			assert('is_string($method_name)');
-			assert('is_string($foreign_class)');
-			assert('is_string($local_key)');
-			assert('is_string($foreign_key)');
-			$methods[$method_name] = sprintf('
-				var $__autorecord_%s;
-				public function %s()
-				{
-					if (is_null($this->__autorecord_%s))
-						$this->__autorecord_%s = %s::find_by_column(\'%s\', $this->get(\'%s\'));
-
-					return $this->__autorecord_%s;
-				}',
-				$method_name, $method_name, $method_name, $method_name,
-				$foreign_class, $foreign_key, $local_key, $method_name);
-		}
-
-		/* Has-one relations */
-		$has_one_definitions = call_user_func(array($class_, '_db_has_one'));
-		foreach ($has_one_definitions as $has_one_definition)
-		{
-			assert('is_numeric_array($has_one_definition)');
-			assert('count($has_one_definition) == 4');
-			list ($method_name, $foreign_class, $local_key, $foreign_key) = $has_one_definition;
-			assert('is_string($method_name)');
-			assert('is_string($foreign_class)');
-			assert('is_string($local_key)');
-			assert('is_string($foreign_key)');
-			$methods[$method_name] = sprintf('
-				var $__autorecord_%s;
-				public function %s()
-				{
-					if (is_null($this->__autorecord_%s))
-						$this->__autorecord_%s = %s::find_one_by_column(\'%s\', $this->get(\'%s\'));
-
-					return $this->__autorecord_%s;
-				}',
-				$method_name, $method_name, $method_name, $method_name,
-				$foreign_class, $foreign_key, $local_key, $method_name);
-		}
-
-		/* Custom extra methods */
-		$extra_methods = call_user_func(array($class_, '_autorecord_extra_methods'));
-		$methods = array_merge($methods, $extra_methods);
-
-		/* Create the actual class definition string. */
 		$class_code = array();
 		$class_code[] = 'class @@CLASS@@ extends @@CLASS@@_ {';
-		foreach ($methods as $m)
-			$class_code[] = $m;
-
 		$class_code[] = '}';
 
 		/* Replace placeholders with actual values */
@@ -505,18 +375,20 @@ class AutoRecord extends Container
 	 *   String with comma-separated escaped column names. This string can be
 	 *   used directly (unescaped) in the SELECT part of an SQL query.
 	 */
-	protected static function __db_select_clause($class, $table_alias=null, $joins=null, $db)
+	protected static function __db_select_clause( $table_alias=null, $joins=null)
 	{
+		$class		= get_called_class();
+		$db		= static::_db();
 		assert('is_string($class)');
 		assert('$db instanceof AnewtDatabaseConnectionMySQL');
 
 		$column_spec = array();
 		$column_data = array();
 
-		$columns = call_user_func(array($class, '_db_columns'));
+		$columns 	= static::_db_columns();
 
 		if (is_null($table_alias))
-			$table_alias = call_user_func(array($class, '_db_table'));
+			$table_alias = static::_db_table();
 
 		foreach(array_keys($columns) as $column)
 		{
@@ -526,8 +398,8 @@ class AutoRecord extends Container
 		}
 
 		if (is_null($joins)) {
-			$joins = call_user_func(array($class, '_db_join_one'));
-			$joins_many = call_user_func(array($class, '_db_join_many'));
+			$joins 		= static::_db_join_one();
+			$joins_many 	= static::_db_join_many();
 			foreach($joins_many as $join) {
 				$join['multi'] = true;
 				$joins[] = $join;
@@ -596,21 +468,20 @@ class AutoRecord extends Container
 	 *   conditions. This string can be used directly (unescaped) in the
 	 *   FROM part of an SQL query.
 	 */
-	protected static function __db_from_clause($class, $table_alias=null, $joins=null, $db)
+	protected static function __db_from_clause($table_alias=null, $joins=null)
 	{
-		assert('is_string($class)');
-		assert('$db instanceof AnewtDatabaseConnectionMySQL;');
-
-		$from_clause = $db->escape_table_name(call_user_func(array($class, '_db_table')));
+		$class		= get_called_class();
+		$db		= static::_db();
+		$from_clause = $db->escape_table_name(static::_db_table());
 
 		if (is_null($table_alias))
-			$table_alias = $db->escape_table_name(call_user_func(array($class, '_db_table')));
+			$table_alias = $db->escape_table_name(static::_db_table());
 		else
 			$from_clause = sprintf('%s %s', $from_clause, $table_alias);
 
 		if (is_null($joins)) {
-			$joins = call_user_func(array($class, '_db_join_one'));
-			$joins_many = call_user_func(array($class, '_db_join_many'));
+			$joins 		= static::_db_join_one();
+			$joins_many 	= static::_db_join_many();
 			foreach($joins_many as $join) {
 				$join['multi'] = true;
 				$joins[] = $join;
@@ -670,14 +541,16 @@ class AutoRecord extends Container
 	 *   String with comma-separated escaped order elements.  This string
 	 *   can be used directly (unescaped) in the FROM part of an SQL query.
 	 */
-	protected static function __db_order_clause($class, $table_alias=null, $db)
+	protected static function __db_order_clause($table_alias=null)
 	{
+		$class		= get_called_class();
+		$db		= static::_db();
 		if(is_null($table_alias))
-			$table_alias = $db->escape_table_name(call_user_func(array($class, '_db_table')));
+			$table_alias = $db->escape_table_name(static::_db_table());
 
-		$sort_column = call_user_func(array($class, '_db_sort_column'));
-		if (is_null($sort_column) && call_user_func(array($class, '_db_primary_keys'))) {
-			$sort_column = call_user_func(array($class, '_db_primary_keys'));
+		$sort_column = static::_db_sort_column();
+		if (is_null($sort_column) && static::_db_primary_keys()) {
+			$sort_column = static::_db_primary_keys();
 			if( $sort_column && is_array( $sort_column )) {
 				$sort_column = array_shift($sort_column);
 			} else { $sort_column	= null; }
@@ -685,12 +558,12 @@ class AutoRecord extends Container
 			
 		
 		if (is_null($sort_column))
-			$sort_column = call_user_func(array($class, '_db_primary_key'));
+			$sort_column = static::_db_primary_key();
 
 		if (!is_array($sort_column))
 			$sort_column = array($sort_column);
 
-		$sort_order = call_user_func(array($class, '_db_sort_order'));
+		$sort_order = static::_db_sort_order();
 		if (!is_array($sort_order))
 			$sort_order = array($sort_order);
 
@@ -856,15 +729,17 @@ class AutoRecord extends Container
 	 * \return
 	 *   A single instance (or null) or an array of instances (or empty array)
 	 */
-	protected static function __db_find_by_id($class, $just_one_result, $values, $db)
+	protected static function __db_find_by_id( $just_one_result, $values )
 	{
+		$class		= get_called_class();
+		$db		= static::_db();
 		assert('is_string($class)');
 		assert('is_bool($just_one_result)');
 		assert('is_numeric_array($values)');
 		assert('$db instanceof AnewtDatabaseConnectionMySQL');
 		
 		// validate that find by id is impossible on AR classes which have multiple primary keys
-		if( call_user_func( array($class,"_db_primary_keys") )) {
+		if( static::_db_primary_keys() ) {
 			trigger_error( "find by id is not possible on an autorecord object with multiple primary keys" );
 		}
 
@@ -872,8 +747,8 @@ class AutoRecord extends Container
 			$class 
 			, $just_one_result 
 			, ( $just_one_result 
-				? sprintf( "WHERE %s.%s = %s" , call_user_func(array($class, '_db_table')) , call_user_func(array($class, '_db_primary_key')) , $values[0])
-				: sprintf( "WHERE %s.%s IN (%s)" , call_user_func(array($class, '_db_table')) , call_user_func(array($class, '_db_primary_key')) , implode( "," , $values))
+				? sprintf( "WHERE %s.%s = %s" , static::_db_table() , static::_db_primary_key() , $values[0])
+				: sprintf( "WHERE %s.%s IN (%s)" , static::_db_table() , static::_db_primary_key() , implode( "," , $values))
 			)
 			, NULL
 			, $db
@@ -906,8 +781,10 @@ class AutoRecord extends Container
 	 * \param $db
 	 *   Reference to the database object instance.
 	 */
-	protected static function __db_find_by_sql($class, $just_one_result=false, $sql=null, $values=null, $db)
+	protected static function __db_find_by_sql($just_one_result=false, $sql=null, $values=null)
 	{
+		$class		= get_called_class();
+		$db		= static::_db();
 		/* Input sanitizing */
 		if (is_null($values))
 			$values = array();
@@ -919,8 +796,8 @@ class AutoRecord extends Container
 		assert('$db instanceof AnewtDatabaseConnectionMySQL');
 
 		/* Get basic database settings */
-		$table = call_user_func(array($class, '_db_table'));
-		$primary_key = call_user_func(array($class, '_db_primary_key'));
+		$table 			= static::_db_table();
+		$primary_key 		= static::_db_primary_key();
 
 		/* Basic clauses */
 		if (is_array($sql))
@@ -928,11 +805,11 @@ class AutoRecord extends Container
 		else
 			$joins = null;
 
-		$select_clause = AutoRecord::__db_select_clause($class, null, $joins, $db);
+		$select_clause = static::__db_select_clause( null, $joins);
 
-		$from_clause = AutoRecord::__db_from_clause($class, null, $joins, $db);
+		$from_clause = static::__db_from_clause( null, $joins);
 
-		$order_clause = AutoRecord::__db_order_clause($class, null, $db);
+		$order_clause = static::__db_order_clause( null);
 
 		/* Find all records when no sql was specified*/
 		if (is_null($sql))
@@ -1011,9 +888,9 @@ class AutoRecord extends Container
 					$multi_joins[] = $join;
 			}
 		}
-		$multi_joins = array_merge($multi_joins, call_user_func(array($class, '_db_join_many')));
+		$multi_joins = array_merge($multi_joins, static::_db_join_many());
 
-		$pkey = call_user_func(array($class, '_db_primary_key'));
+		$pkey = $primary_key;
 		foreach($multi_joins as $join)
 		{
 			$foreign_class = $join['foreign_class'];
@@ -1067,18 +944,20 @@ class AutoRecord extends Container
 	 * \param $db
 	 *   Reference to the database object instance.
 	 */
-	protected static function __db_find_by_column($class, $just_one_result, $column, $value, $db)
+	protected static function __db_find_by_column( $just_one_result, $column, $value)
 	{
+		$class		= get_called_class();
+		$db		= static::_db();
 		/* Input sanitizing */
 		assert('is_string($class)');
 		assert('is_bool($just_one_result)');
 		assert('is_string($column)');
 		assert('$db instanceof AnewtDatabaseConnectionMySQL');
 
-		$table = call_user_func(array($class, '_db_table'));
+		$table 		= static::_db_table();
 
 		/* Find out the column type */
-		$columns = call_user_func(array($class, '_db_columns'));
+		$columns 	= static::_db_columns();
 		if (!array_has_key($columns, $column))
 			trigger_error(sprintf("Column %s not found in column list of %s", $column, $class));
 
@@ -1199,9 +1078,9 @@ class AutoRecord extends Container
 	 */
 	protected function __db_insert($skip_primary_key=true)
 	{
-		$table = $this->_db_table();
-		$columns = $this->_db_columns();
-		$db = $this->_db();
+		$table 		= $this->_db_table();
+		$columns 	= $this->_db_columns();
+		$db 		= $this->_db();
 		$primary_keys	= $this->_db_primary_keys();
 		$primary_key 	= $this->_db_primary_key();
 
@@ -1391,10 +1270,10 @@ class AutoRecord extends Container
 	/**
 	*	Tries to see whether the _db_columns is a Complex type
 	*/
-	public static function isComplex($columns=false) {
+	final public static function isComplex($columns=false) {
 
 		if( !$columns ) {
-			$columns			= self::_db_columns();
+			$columns			= static::_db_columns();
 		}
 		
 		assert('is_array($columns)');
@@ -1404,7 +1283,7 @@ class AutoRecord extends Container
 		return false;
 	}
 	public function get_isComplex_() {
-		return self::isComplex( $this -> _db_columns() );
+		return static::isComplex(  );
 	}
 	/**
 	 * Save this record in the database. If the record was previously unsaved
@@ -1570,143 +1449,7 @@ class AutoRecord extends Container
 	/** \} */
 
 
-	/**\{
-	 * \name Static public API methods
-	 *
-	 * Note: These methods only have signatures, so that they can be documented.
-	 * The actual implementation is done using magic in the register() method.
-	 */
 
-	/**
-	 * Select clause with all fields
-	 */
-	protected static function _db_select_clause($table_alias=null) {}
-
-	/**
-	 * Create instance from array.
-	 *
-	 * \param $arr
-	 *   An associative array with data, e.g. a row from a database
-	 *
-	 * \return
-	 *   AutoRecord instance
-	 *
-	 * \see _db_objects_from_arrays
-	 */
-	protected static function _db_object_from_array($arr) {}
-
-	/**
-	 * Create instances from arrays.
-	 *
-	 * \param $arrs
-	 *   List of associative arrays with data, e.g. multiple rows from
-	 *   a database
-	 *
-	 * \return
-	 *   Array of AutoRecord instances (may be empty)
-	 *
-	 * \see _db_object_from_array
-	 */
-	protected static function _db_objects_from_arrays($arrs) {}
-
-	/**
-	 * Find all records in the database
-	 * 
-	 * \return
-	 *   Array of AutoRecord instances (may be empty)
-	 */
-	public static function find_all() {}
-
-	/**
-	 * Find records by id.
-	 *
-	 * \param $values
-	 *   The primary key values of the records to retrieve
-	 *
-	 * \return
-	 *   Array of AutoRecord instances (may be empty)
-	 *
-	 * \see find_one_by_id
-	 */
-	public static function find_by_id($values) {}
-
-	/**
-	 * Find a single record by id.
-	 *
-	 * \param $value
-	 *   The primary key value of the record to retrieve
-	 *
-	 * \return
-	 *   AutoRecord instance (or NULL)
-	 *
-	 * \see find_by_id
-	 */
-	public static function find_one_by_id($value) {}
-
-	/**
-	 * Find records by providing SQL contraints.
-	 *
-	 * \param $sql
-	 *   The constraints of the SQL query. This can be either null (no
-	 *   constraints, selects all records, but please use find_all() instead),
-	 *   a string (the part of the WHERE clause up to the end of the query) or
-	 *   an associative array (with join, where, order-by, limit and offset
-	 *   indices, all optional). You can use ?str?-style placholders for
-	 *   the data provided in $values
-	 *
-	 * \param $values
-	 *   The values to be substituted for the placeholders your provided with
-	 *   the constraints.
-	 *
-	 * \see find_one_by_sql
-	 */
-	public static function find_by_sql($sql=null, $values=null) {}
-
-	/**
-	 * Find a single record by providing SQL contraints.
-	 *
-	 * \param $sql
-	 *   Contraints of the SQL query
-	 *
-	 * \param $values
-	 *   Values to be substituted in the query
-	 *
-	 * \return
-	 *   AutoRecord instance (or NULL)
-	 *
-	 * \see find_by_sql
-	 */
-	public static function find_one_by_sql($sql=null, $values=null) {}
-
-	/**
-	 * Find records by column value. This is a shorthand to find records based
-	 * on the value of a single column, e.g. a unique key.
-	 *
-	 * \param $column
-	 *   The name of the column to use
-	 *
-	 * \param $value
-	 *   The value for the column
-	 *
-	 * \return
-	 *   Array of AutoRecord instances (may be empty)
-	 */
-	public static function find_by_column($column, $value) {}
-
-	/**
-	 * Find a single record by column value. This is a shorthand to find a record
-	 * based on the value of a single column, e.g. a unique key.
-	 *
-	 * \param $column
-	 *   The name of the column to use
-	 *
-	 * \param $value
-	 *   The value for the column
-	 *
-	 * \return
-	 *   AutoRecord instance (or NULL)
-	 */
-	public static function find_one_by_column($column, $value) {}
 
 	/**
 	 * Returns an array of additional static methods to be included in the new class
@@ -1722,6 +1465,135 @@ class AutoRecord extends Container
 	protected static function _autorecord_extra_methods() { return array(); }
 
 	/** \} */
-}
+	
+	final public static function _table_install() {
+		$class		= get_called_class();
+		// check for complex type; non-Complex autorecords cannot be installed
+		if( !$class::isComplex($class::_db_columns()) ) {
+			throw new Exception( $class . " is not a complex AutoRecord" );
+			return false;
+		}
+		// check whether table is already existing in the database
+		if( $class::_table_installed() ) {
+			throw new Exception( $class . " table is already installed" );
+			return false;
+		}
+		// read and create table cq columns
+		$columns	= $class::_db_columns();
+		if( !$columns || !count($columns)) {
+			throw new Exception( $class . " has no method _db_columns" );
+			return false;
+		}
+		$columnsql	= "";
+		foreach( $columns as $name => $column ) {
+			if(!isset($ai) && isset($column["ai"])) {
+				$ai	= (int) $column["ai"];
+			}
+			$columnsql .= sprintf("
+			`%s`			%s%s%s%s%s,"
+				, $name
+				, ( isset($column["ctype"]) 					? $column["ctype"] 					: $column["type"] )
+				, ( isset($column["ai"]) 					? " AUTO_INCREMENT" 					: false )
+				, ( isset($column["default"]) && !isset($column["ai"])		? sprintf(" DEFAULT '%s'",$column["default"])		: false )
+				, ( isset($column["null"]) && !isset($column["ai"])		? " NULL "						: " NOT NULL " )
+				, ( isset($column["comment"])					? sprintf(" COMMENT '%s'",$column["comment"])		: false )
+			);
+		}
+		if( $class::_db_primary_keys() ) {
+			$key	= implode( "," , $class::_db_primary_keys() );
+		} elseif( $class::_db_primary_key() ) {
+			$key	= $class::_db_primary_key();
+		} else { 
+			$key	= false;
+		}
+		$sql		= sprintf("
+		CREATE TABLE IF NOT EXISTS `%s` (
+			%s
+			%s
+		) ENGINE=%s DEFAULT CHARSET=utf8%s;\r\n"
+			, $class::_db_table()
+			, $columnsql
+			, ($key ? sprintf( "PRIMARY KEY (%s)" , $key) : false )
+			, self::_db_table_engine()
+			, (isset($ai) ? sprintf( " AUTO_INCREMENT=%d",$ai) : false )
+		);
+		
+		$db		= $class::_db();
+		$pq		= $db -> prepare( $sql );
+		$rs		= $pq -> execute();
+		
+		return true;
+	}
+	final public static function _table_installed() {
+		$class		= get_called_class();
+		$db		= $class::_db();
 
-?>
+		$pq		= $db -> prepare( "SHOW TABLES LIKE ?string:table?" );
+		$rs		= $pq -> executev( array( "table" => $class::_db_table()) );
+		
+		return (bool) $rs -> count();
+	}
+	protected static function _db_select_clause($table_alias=null, $joins=null) {
+		return static::__db_select_clause( $table_alias, $joins);
+	}
+
+	/* From clause with all joins */
+	function _db_from_clause($table_alias=null, $joins=null) {
+		return static::__db_from_clause( $table_alias, $joins );
+	}
+
+	/* Create instances from arrays (e.g. database records) */
+	protected static function _db_object_from_array($arr) {
+		return static::__db_object_from_array($arr);
+	}
+	protected static function _db_objects_from_arrays($arrs) {
+		return static::__db_objects_from_arrays($arrs);
+	}
+
+	/* Find all */
+	public static function find_all() {
+		return static::find_by_sql();
+	}
+
+	/* Find by id */
+	public static function find_by_id($values) {
+		$args = func_get_args();
+		$num_args = func_num_args();
+		/* Accept both multiple parameters and a single array */
+		if (($num_args == 1) && is_array($args[0])) {
+			$args = $args[0];
+		}
+		return static::__db_find_by_id(false, $args);
+	}
+
+	public static function find_one_by_id($value) {
+		assert('is_int($value)');
+		/* Check for just one single parameter. This helps finding
+			* bugs where find_by_id() was meant to be used */
+		$num_args = func_num_args();
+		assert('$num_args === 1');
+		return static::__db_find_by_id(true, array($value));
+	}
+
+	/* Find by SQL */
+	public static function find_by_sql($sql=null, $values=null) {
+		$args = func_get_args();
+		$sql = array_shift($args);
+		if (count($args) == 1 && is_array($args[0])) $args = $args[0];
+		return static::__db_find_by_sql(false, $sql, $args);
+	}
+	public static function find_one_by_sql($sql=null, $values=null) {
+		$args = func_get_args();
+		$sql = array_shift($args);
+		if (count($args) == 1 && is_array($args[0])) $args = $args[0];
+		return static::__db_find_by_sql(true, $sql, $args);
+	}
+
+	/* Find by column */
+	public static function find_by_column($column, $value) {
+		return static::__db_find_by_column(false, $column, $value);
+	}
+	public static function find_one_by_column($column, $value) {
+		return static::__db_find_by_column(true, $column, $value);
+	}
+}
