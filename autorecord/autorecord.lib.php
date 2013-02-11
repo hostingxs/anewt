@@ -743,15 +743,13 @@ class AutoRecord extends Container
 			trigger_error( "find by id is not possible on an autorecord object with multiple primary keys" );
 		}
 
-		return AutoRecord::__db_find_by_sql( 
-			$class 
-			, $just_one_result 
+		return static::__db_find_by_sql( 
+			$just_one_result 
 			, ( $just_one_result 
 				? sprintf( "WHERE %s.%s = %s" , static::_db_table() , static::_db_primary_key() , $values[0])
 				: sprintf( "WHERE %s.%s IN (%s)" , static::_db_table() , static::_db_primary_key() , implode( "," , $values))
 			)
 			, NULL
-			, $db
 		);
 	}
 
@@ -974,12 +972,10 @@ class AutoRecord extends Container
 			$placeholder_values = array($table, $column, $value);
 		}
 
-		$result = AutoRecord::__db_find_by_sql(
-				$class,
+		$result = static::__db_find_by_sql(
 				$just_one_result,
 				array('where' => $where_clause),
-				$placeholder_values,
-				$db);
+				$placeholder_values);
 		return $result;
 	}
 
