@@ -1089,7 +1089,7 @@ class AutoRecord extends Container
 		$values = array();
 		foreach ($columns as $name => $opts)
 		{
-			if( $this -> get("isComplex")){
+			if( static::isComplex()){
 				$type		= $opts['type'];
 			} else {
 				$type		= $opts;
@@ -1204,7 +1204,7 @@ class AutoRecord extends Container
 		$values = array();
 		foreach ($columns as $name => $opts)
 		{	
-			if( $this -> get("isComplex")){
+			if( static::isComplex() ){
 				$type		= $opts['type'];
 			} else {
 				$type		= $opts;
@@ -1257,7 +1257,7 @@ class AutoRecord extends Container
 			$whr									= implode( " AND " , $whr );
 		} else {
 			$whr									= sprintf( "%s = ?%s:%s_value?" , $this -> _db_primary_key() 
-														, $this -> get("isComplex") ? $columns[$this -> _db_primary_key()]['type'] : $columns[$this -> _db_primary_key()]
+														, static::isComplex() ? $columns[$this -> _db_primary_key()]['type'] : $columns[$this -> _db_primary_key()]
 														, $this -> _db_primary_key() );
 			$params[sprintf("%s_value",$this -> _db_primary_key())]						= $this -> get($this -> _db_primary_key());
 		}
@@ -1277,9 +1277,6 @@ class AutoRecord extends Container
 			return true;
 		}
 		return false;
-	}
-	public function get_isComplex_() {
-		return static::isComplex(  );
 	}
 	/**
 	 * Save this record in the database. If the record was previously unsaved
@@ -1465,17 +1462,17 @@ class AutoRecord extends Container
 	final public static function _table_install() {
 		$class		= get_called_class();
 		// check for complex type; non-Complex autorecords cannot be installed
-		if( !$class::isComplex($class::_db_columns()) ) {
+		if( !static::isComplex($class::_db_columns()) ) {
 			throw new Exception( $class . " is not a complex AutoRecord" );
 			return false;
 		}
 		// check whether table is already existing in the database
-		if( $class::_table_installed() ) {
+		if( static::_table_installed() ) {
 			throw new Exception( $class . " table is already installed" );
 			return false;
 		}
 		// read and create table cq columns
-		$columns	= $class::_db_columns();
+		$columns	= static::_db_columns();
 		if( !$columns || !count($columns)) {
 			throw new Exception( $class . " has no method _db_columns" );
 			return false;
@@ -1495,10 +1492,10 @@ class AutoRecord extends Container
 				, ( isset($column["comment"])					? sprintf(" COMMENT '%s'",$column["comment"])		: false )
 			);
 		}
-		if( $class::_db_primary_keys() ) {
-			$key	= implode( "," , $class::_db_primary_keys() );
+		if( static::_db_primary_keys() ) {
+			$key	= implode( "," , static::_db_primary_keys() );
 		} elseif( $class::_db_primary_key() ) {
-			$key	= $class::_db_primary_key();
+			$key	= static::_db_primary_key();
 		} else { 
 			$key	= false;
 		}
@@ -1507,14 +1504,14 @@ class AutoRecord extends Container
 			%s
 			%s
 		) ENGINE=%s DEFAULT CHARSET=utf8%s;\r\n"
-			, $class::_db_table()
+			, static::_db_table()
 			, $columnsql
 			, ($key ? sprintf( "PRIMARY KEY (%s)" , $key) : false )
-			, self::_db_table_engine()
+			, static::_db_table_engine()
 			, (isset($ai) ? sprintf( " AUTO_INCREMENT=%d",$ai) : false )
 		);
 		
-		$db		= $class::_db();
+		$db		= static::_db();
 		$pq		= $db -> prepare( $sql );
 		$rs		= $pq -> execute();
 		
@@ -1522,10 +1519,10 @@ class AutoRecord extends Container
 	}
 	final public static function _table_installed() {
 		$class		= get_called_class();
-		$db		= $class::_db();
+		$db		= static::_db();
 
 		$pq		= $db -> prepare( "SHOW TABLES LIKE ?string:table?" );
-		$rs		= $pq -> executev( array( "table" => $class::_db_table()) );
+		$rs		= $pq -> executev( array( "table" => static::_db_table()) );
 		
 		return (bool) $rs -> count();
 	}
@@ -1593,6 +1590,20 @@ class AutoRecord extends Container
 		return static::__db_find_by_column(true, $column, $value);
 	}
 	final public function __sleep() {
-		return array_keys(static::_db_columns());
+		$cols = array_keys(static::_db_columns());
+		if( get_called_class() == "SystemUser" ) { 
+			_debug( array_keys($this -> __data) );
+		}
+		if( $this->__fromdb || $this -> _db_primary_keys() ) {
+			return array_keys($this -> __data);
+		}
+		
+		$ret	= array();
+		foreach( $cols as $col ) {
+			if( $col != $this -> _db_primary_key() ) {
+				$ret[]	= $col;
+			}
+		}
+		return $ret;
 	}
 }
