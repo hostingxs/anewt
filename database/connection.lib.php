@@ -244,6 +244,9 @@ abstract class AnewtDatabaseConnection
 		$values = func_get_args();
 		assert('count($values) >= 1; // At least an SQL query must be provided. ');
 		$sql = array_shift($values);
+		if( isset($values) && is_array($values) && $values[0] == NULL ) {
+			$values	= NULL;
+		}
 		return $this->prepare_executev_fetch_one($sql, $values);
 	}
 
