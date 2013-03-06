@@ -1080,6 +1080,10 @@ class AutoRecord extends Container
 		$primary_keys	= $this->_db_primary_keys();
 		$primary_key 	= $this->_db_primary_key();
 
+		if( $skip_primary_key !== static::_db_skip_primary_key() ) {
+			$skip_primary_key	= static::_db_skip_primary_key();
+		}
+		
 		$this->before_insert();
 
 		/* Loop over the columns and build an INSERT query, which contains two
@@ -1100,7 +1104,6 @@ class AutoRecord extends Container
 			/* Skip the primary key */
 			if (!$primary_keys && $name === $primary_key && $skip_primary_key)
 				continue;
-
 			/* Skip columns which are not set, they will be set by the database defaults */
 			if (!$this->is_set($name))
 				continue;
@@ -1110,7 +1113,9 @@ class AutoRecord extends Container
 			$value_types[] = sprintf('?%s:%s?', $type, $name); /* placeholder for real values */
 			$values[$name] = $this->getdefault($name,  isset($opts['default']) ? $opts['default'] : null );
 		}
-
+		if( $number_of_columns == 0 ) {
+			throw new Exception( "Cannot insert, 0 columns to fill" );
+		}
 		/* Create SQL for the list of column names */
 		$columns_tpl = new AnewtDatabaseSQLTemplate(
 				join(', ', array_fill(0, $number_of_columns, '?column?')),
@@ -1592,7 +1597,8 @@ class AutoRecord extends Container
 	public static function find_one_by_column($column, $value) {
 		return static::__db_find_by_column(true, $column, $value);
 	}
-	final public function __sleep() {
-		return array_keys(static::_db_columns());
+	protected static function _db_skip_primary_key() {
+		return true;
 	}
+
 }
